@@ -1,0 +1,20 @@
+{
+  "video": {
+    "x": -28,
+    "y": 716,
+    "width": 1143,
+    "height": 623
+  },
+  "headline": {
+    "x": 110,
+    "y": 523,
+    "width": 847,
+    "fontSize": 45,
+    "lineHeight": 1.2
+  },
+  "watermark": {
+    "x": 511,
+    "bottom": 40,
+    "width": 79
+  }
+}
