@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { RenderTask } from '../../../types';
+import { getRendersDir } from '../../../lib/paths';
 
-const getHistoryFilePath = () => path.join(process.cwd(), 'renders', 'history.json');
-const getRendersDir = () => path.join(process.cwd(), 'renders');
+const getHistoryFilePath = () => path.join(getRendersDir(), 'history.json');
 
 export async function GET() {
   try {

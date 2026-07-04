@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
+import { getUploadsDir, getRendersDir } from '../../../lib/paths';
 import { RenderTask, WordStyle } from '../../../types';
 
 // ─── History ─────────────────────────────────────────────────────────────────
 async function addToHistory(task: RenderTask) {
-  const historyFile = path.join(process.cwd(), 'renders', 'history.json');
+  const historyFile = path.join(getRendersDir(), 'history.json');
   let history: RenderTask[] = [];
 
   const rendersDir = path.dirname(historyFile);
@@ -40,8 +41,9 @@ export async function POST(req: NextRequest) {
     let resolvedVideoPath = videoPath;
     let duration = inputDuration || 15;
 
-    if (videoPath.startsWith('/uploads/')) {
-      const fullPath = path.join(process.cwd(), 'public', videoPath);
+    if (videoPath.startsWith('/uploads/') || videoPath.startsWith('/api/uploads/')) {
+      const filename = path.basename(videoPath);
+      const fullPath = path.join(getUploadsDir(), filename);
       if (fs.existsSync(fullPath)) {
         resolvedVideoPath = 'file:///' + fullPath.replace(/\\/g, '/');
       }
@@ -54,6 +56,8 @@ export async function POST(req: NextRequest) {
       words,
       config,
       duration,
+      uploadsDir: getUploadsDir(),
+      rendersDir: getRendersDir(),
     });
 
     const workerPath = path.join(process.cwd(), 'render-worker.js');

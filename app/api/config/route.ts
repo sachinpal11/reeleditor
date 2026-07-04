@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getRendersDir } from '../../../lib/paths';
 
-const getFilePath = () => path.join(process.cwd(), 'config', 'templates.json');
+// Writeable path in os.tmpdir (or renders/ locally)
+const getFilePath = () => path.join(getRendersDir(), 'templates.json');
+
+// Packaged read-only default path
+const getDefaultFilePath = () => path.join(process.cwd(), 'config', 'templates.json');
 
 export async function GET() {
   try {
-    const filePath = getFilePath();
+    let filePath = getFilePath();
+    
+    // If the writeable user-edited config doesn't exist yet, fall back to default packaged config
+    if (!fs.existsSync(filePath)) {
+      filePath = getDefaultFilePath();
+    }
+    
     if (!fs.existsSync(filePath)) {
       return NextResponse.json({ error: 'Templates config file not found' }, { status: 404 });
     }
@@ -27,6 +38,13 @@ export async function POST(req: NextRequest) {
     }
 
     const filePath = getFilePath();
+    
+    // Ensure parent dir exists
+    const dir = path.dirname(filePath);
+    if (!fs.existsSync(dir)) {
+      await fs.promises.mkdir(dir, { recursive: true });
+    }
+
     await fs.promises.writeFile(filePath, JSON.stringify(body, null, 2), 'utf8');
     
     return NextResponse.json({ success: true });

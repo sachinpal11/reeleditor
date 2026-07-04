@@ -40,7 +40,7 @@ async function main() {
     inputData += chunk;
   }
 
-  const { id, videoPath, resolvedVideoPath, words, config, duration: inputDuration } = JSON.parse(inputData);
+  const { id, videoPath, resolvedVideoPath, words, config, duration: inputDuration, uploadsDir, rendersDir } = JSON.parse(inputData);
 
   function send(obj) {
     process.stdout.write(JSON.stringify(obj) + '\n');
@@ -61,18 +61,19 @@ async function main() {
     const publicDir = path.join(process.cwd(), 'public');
 
     // Single HTTP server that serves:
-    //   /           → Remotion webpack bundle (for Remotion's renderer)
-    //   /public/*   → project public/ folder (assets, uploads, images)
+    //   /                 → Remotion webpack bundle (for Remotion's renderer)
+    //   /public/uploads/* → writeable uploads directory (temp or local)
+    //   /public/*         → static assets from project public/ folder
     //
-    // Supports HTTP 206 Range requests — required for Chrome's <video> element
-    // to seek into MP4/video files during rendering. Without this, Remotion's
-    // delayRender() times out waiting for the video to become playable.
+    // Supports HTTP 206 Range requests — required for Chrome's <video> element.
     const port = await new Promise((resolve, reject) => {
       const server = http.createServer((req, res) => {
         let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
 
         let filePath;
-        if (urlPath.startsWith('/public/')) {
+        if (urlPath.startsWith('/public/uploads/')) {
+          filePath = path.join(uploadsDir, urlPath.slice('/public/uploads'.length));
+        } else if (urlPath.startsWith('/public/')) {
           filePath = path.join(publicDir, urlPath.slice('/public'.length));
         } else {
           if (urlPath === '/') urlPath = '/index.html';
@@ -82,8 +83,13 @@ async function main() {
         // Security: prevent path traversal
         const bundleResolved = path.resolve(bundlePath);
         const publicResolved = path.resolve(publicDir);
+        const uploadsResolved = path.resolve(uploadsDir);
         const fileResolved   = path.resolve(filePath);
-        if (!fileResolved.startsWith(bundleResolved) && !fileResolved.startsWith(publicResolved)) {
+        if (
+          !fileResolved.startsWith(bundleResolved) &&
+          !fileResolved.startsWith(publicResolved) &&
+          !fileResolved.startsWith(uploadsResolved)
+        ) {
           res.writeHead(403); res.end('Forbidden'); return;
         }
 
@@ -135,17 +141,22 @@ async function main() {
     if (resolvedVideoPath.startsWith('file:///')) {
       // Extract the absolute file path from the file:// URL
       const absPath = decodeURIComponent(resolvedVideoPath.replace(/^file:\/\/\//, '').replace(/\//g, path.sep));
-      const publicResolved = path.resolve(publicDir);
+      const uploadsResolved = path.resolve(uploadsDir);
       const fileResolved = path.resolve(absPath);
 
-      if (fileResolved.startsWith(publicResolved)) {
-        // Make it a relative path under /public/
-        const rel = fileResolved.slice(publicResolved.length).replace(/\\/g, '/');
-        httpVideoPath = `${serveUrl}/public${rel}`;
+      if (fileResolved.startsWith(uploadsResolved)) {
+        const rel = fileResolved.slice(uploadsResolved.length).replace(/\\/g, '/');
+        httpVideoPath = `${serveUrl}/public/uploads${rel}`;
+      } else {
+        const publicResolved = path.resolve(publicDir);
+        if (fileResolved.startsWith(publicResolved)) {
+          const rel = fileResolved.slice(publicResolved.length).replace(/\\/g, '/');
+          httpVideoPath = `${serveUrl}/public${rel}`;
+        }
       }
-    } else if (resolvedVideoPath.startsWith('/uploads/') || resolvedVideoPath.startsWith('/assets/')) {
-      // Already a relative public path
-      httpVideoPath = `${serveUrl}/public${resolvedVideoPath}`;
+    } else if (resolvedVideoPath.startsWith('/uploads/') || resolvedVideoPath.startsWith('/api/uploads/')) {
+      const filename = path.basename(resolvedVideoPath);
+      httpVideoPath = `${serveUrl}/public/uploads/${filename}`;
     }
 
     console.error(`[render-worker] bundle at ${serveUrl}`);
@@ -185,7 +196,7 @@ async function main() {
       composition.durationInFrames = Math.max(30, Math.round(duration * 30));
     }
 
-    const outputLocation = path.join(process.cwd(), 'renders', `${id}.mp4`);
+    const outputLocation = path.join(rendersDir, `${id}.mp4`);
     fs.mkdirSync(path.dirname(outputLocation), { recursive: true });
 
     // Render media with capped concurrency (3) and ultrafast preset to make

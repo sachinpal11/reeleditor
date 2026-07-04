@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { getUploadsDir } from '../../../lib/paths';
 
 
 
@@ -27,12 +28,7 @@ export async function POST(req: NextRequest) {
     // Create unique sanitized filename
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filename = `${Date.now()}-${sanitizedName}`;
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-
-    // Double check that directory exists
-    if (!fs.existsSync(uploadDir)) {
-      await fs.promises.mkdir(uploadDir, { recursive: true });
-    }
+    const uploadDir = getUploadsDir();
 
     const filePath = path.join(uploadDir, filename);
     const arrayBuffer = await file.arrayBuffer();
@@ -40,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     await fs.promises.writeFile(filePath, buffer);
 
-    const relativeUrl = `/uploads/${filename}`;
+    const relativeUrl = `/api/uploads/${filename}`;
 
     return NextResponse.json({
       success: true,
