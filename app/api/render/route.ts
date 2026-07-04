@@ -135,7 +135,33 @@ export async function POST(req: NextRequest) {
                   );
                   controller.close();
                 } else if (msg.type === 'error') {
-                  throw new Error(msg.message);
+                  const errMsg = msg.message || 'Rendering failed';
+                  console.error('[render-worker] reported error:', errMsg);
+                  
+                  const failedTask: RenderTask = {
+                    id,
+                    words,
+                    videoName: path.basename(videoPath),
+                    videoUrl: videoPath,
+                    duration,
+                    status: 'failed',
+                    progress: 0,
+                    date: new Date().toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }),
+                    error: errMsg.slice(0, 500),
+                  };
+                  addToHistory(failedTask).catch(console.error);
+
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ status: 'failed', error: errMsg.slice(0, 500) })}\n\n`)
+                  );
+                  controller.close();
+                  try { worker.kill(); } catch {}
+                  return;
                 }
               } catch (parseErr: any) {
                 // If JSON parse fails the line is a non-JSON log — ignore

@@ -178,17 +178,21 @@ async function main() {
     }
 
     if (!resolvedChrome) {
-      throw new Error('No local Chrome/Edge found. Set PUPPETEER_EXECUTABLE_PATH in .env.local');
+      console.error('[render-worker] No local Chrome/Edge found. Falling back to Remotion browser auto-download.');
     }
 
-    // Select composition
-    const composition = await selectComposition({
+    // Select composition options
+    const selectOptions = {
       serveUrl,
       id: 'SocialMediaReel',
       inputProps: { videoPath: httpVideoPath, words, config },
-      browserExecutable: resolvedChrome,
       chromeMode: 'chrome-for-testing',
-    });
+    };
+    if (resolvedChrome) {
+      selectOptions.browserExecutable = resolvedChrome;
+    }
+
+    const composition = await selectComposition(selectOptions);
 
     // Override duration if provided
     let duration = inputDuration || 15;
@@ -199,22 +203,26 @@ async function main() {
     const outputLocation = path.join(rendersDir, `${id}.mp4`);
     fs.mkdirSync(path.dirname(outputLocation), { recursive: true });
 
-    // Render media with capped concurrency (3) and ultrafast preset to make
-    // encoding significantly faster while staying safe on RAM usage.
-    await renderMedia({
+    // Render media options
+    const renderOptions = {
       composition,
       serveUrl,
       codec: 'h264',
+      pixelFormat: 'yuv420p', // Force standard mobile-compatible pixel format
       x264Preset: 'ultrafast',
       outputLocation,
       inputProps: { videoPath: httpVideoPath, words, config },
-      browserExecutable: resolvedChrome,
       chromeMode: 'chrome-for-testing',
       concurrency: 3,
       onProgress: ({ progress }) => {
         send({ type: 'progress', progress: 0.05 + progress * 0.94 });
       },
-    });
+    };
+    if (resolvedChrome) {
+      renderOptions.browserExecutable = resolvedChrome;
+    }
+
+    await renderMedia(renderOptions);
 
     send({ type: 'done', outputLocation, duration });
   } catch (err) {
