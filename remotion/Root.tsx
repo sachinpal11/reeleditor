@@ -20,6 +20,8 @@ export const RemotionRoot: React.FC = () => {
     config: {
       id: 'default',
       name: 'Default Tech Layout',
+      layoutMode: 'auto',
+      layoutGap: 24,
       backgroundSrc: '/assets/background.png',
       backgroundScale: 1.0,
       header: {
@@ -48,7 +50,8 @@ export const RemotionRoot: React.FC = () => {
         x: 'center',
         bottom: 40,
         width: 55,
-        scale: 1.0
+        scale: 1.0,
+        alignToVideo: true
       }
     }
   };

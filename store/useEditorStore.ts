@@ -35,7 +35,7 @@ interface EditorState {
     key: S,
     value: Template[K][S]
   ) => void;
-  updateActiveTemplateRootValue: <K extends 'backgroundSrc' | 'backgroundScale'>(
+  updateActiveTemplateRootValue: <K extends 'backgroundSrc' | 'backgroundScale' | 'layoutMode' | 'layoutGap'>(
     key: K,
     value: Template[K]
   ) => void;
