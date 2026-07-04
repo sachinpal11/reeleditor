@@ -19,7 +19,7 @@ export async function GET(
     }
 
     const stat = await fs.promises.stat(filePath);
-    const fileStream = fs.createReadStream(filePath);
+    const totalSize = stat.size;
 
     // Basic content-type detection
     const ext = path.extname(filePath).toLowerCase();
@@ -31,11 +31,37 @@ export async function GET(
       '.jpg': 'image/jpeg',
       '.jpeg': 'image/jpeg',
     };
+    const contentType = types[ext] || 'application/octet-stream';
 
+    // Support HTTP 206 Range requests (crucial for iOS Safari / Mobile Video Playback)
+    const rangeHeader = req.headers.get('range');
+    if (rangeHeader) {
+      const match = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+      if (match) {
+        const start = match[1] ? parseInt(match[1], 10) : 0;
+        const end = match[2] ? parseInt(match[2], 10) : totalSize - 1;
+        const chunkSize = end - start + 1;
+
+        const fileStream = fs.createReadStream(filePath, { start, end });
+
+        return new NextResponse(fileStream as any, {
+          status: 206,
+          headers: {
+            'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': chunkSize.toString(),
+            'Content-Type': contentType,
+          },
+        });
+      }
+    }
+
+    // Default full file response
+    const fileStream = fs.createReadStream(filePath);
     return new NextResponse(fileStream as any, {
       headers: {
-        'Content-Type': types[ext] || 'application/octet-stream',
-        'Content-Length': stat.size.toString(),
+        'Content-Type': contentType,
+        'Content-Length': totalSize.toString(),
         'Accept-Ranges': 'bytes',
       },
     });
