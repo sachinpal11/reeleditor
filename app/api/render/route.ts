@@ -5,6 +5,10 @@ import { spawn } from 'child_process';
 import { getUploadsDir, getRendersDir } from '../../../lib/paths';
 import { RenderTask, WordStyle } from '../../../types';
 
+// Dummy imports to force Vercel/Next.js to package these modules for our child process worker
+import '@remotion/bundler';
+import '@remotion/renderer';
+
 // ─── History ─────────────────────────────────────────────────────────────────
 async function addToHistory(task: RenderTask) {
   const historyFile = path.join(getRendersDir(), 'history.json');
