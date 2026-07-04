@@ -5,9 +5,12 @@ import { spawn } from 'child_process';
 import { getUploadsDir, getRendersDir } from '../../../lib/paths';
 import { RenderTask, WordStyle } from '../../../types';
 
-// Dummy imports to force Vercel/Next.js to package these modules for our child process worker
-import '@remotion/bundler';
-import '@remotion/renderer';
+// Statically visible require statements to force Vercel to bundle these packages for our child process,
+// wrapped in dead-code 'if (false)' so Next.js never executes them at serverless runtime.
+if (false) {
+  require('@remotion/bundler');
+  require('@remotion/renderer');
+}
 
 // ─── History ─────────────────────────────────────────────────────────────────
 async function addToHistory(task: RenderTask) {
